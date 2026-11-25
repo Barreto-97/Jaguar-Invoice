@@ -78,27 +78,18 @@
       flex-wrap: wrap;
     }
 
-    .brand-dsv {
+.brand-dsv {
       display: flex;
-      flex-direction: column;
-      gap: 4px;
+      align-items: center;
       padding: 4px 0;
     }
 
-    .brand-dsv-mark {
-      font-size: 32px;
-      font-weight: 900;
-      color: var(--dsv-blue);
-      letter-spacing: -0.05em;
-      line-height: 1;
-      font-style: italic;
-    }
-
-    .brand-dsv-payoff {
-      font-size: 11px;
-      color: var(--dsv-blue);
-      letter-spacing: 0.02em;
-      font-weight: 400;
+    .dsv-logo {
+      height: 52px;
+      width: auto;
+      max-width: 180px;
+      object-fit: contain;
+      display: block;
     }
 
     .brand-partner {
@@ -534,9 +525,16 @@
   <!-- Cabeçalho Institucional -->
   <header class="topbar">
     <div class="topbar-inner">
-      <div class="brand-dsv" aria-label="DSV Global Transport and Logistics">
-        <span class="brand-dsv-mark">DSV</span>
-        <span class="brand-dsv-payoff">Global Transport and Logistics</span>
+<div class="brand-dsv" aria-label="DSV Global Transport and Logistics">
+        <img
+          src="DSV Logo.png"
+          alt="DSV — Global Transport and Logistics"
+          class="dsv-logo"
+          onerror="this.style.display='none'; document.getElementById('dsvFallback').style.display='inline-block';"
+        />
+        <span id="dsvFallback" style="display:none; font-size:28px; font-weight:900; color:#002664;">
+          DSV
+        </span>
       </div>
 
       <div class="brand-partner">
