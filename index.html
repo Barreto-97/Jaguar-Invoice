@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Extrator de Invoices JLR | Integração Mult</title>
+
+  <!-- PDF.js (Leitura de PDF no navegador) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- SheetJS (Geração de Excel .xlsx no navegador) -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+
+  <style>
+    /* ==========================================================================
+       DSV Corporate Visual Identity — Tokens Oficiais
+       ========================================================================== */
+    :root {
+      /* Primárias (80%) */
+      --dsv-blue: #002664;
+      --dsv-white: #FFFFFF;
+      --dsv-black: #000000;
+
+      /* Cinzas de suporte */
+      --dsv-grey-900: #2F3135;
+      --dsv-grey-700: #646768;
+      --dsv-grey-500: #83878D;
+      --dsv-grey-300: #CDD0D3;
+      --dsv-grey-100: #EFF0F0;
+
+      /* Secundárias / Acento (20%) */
+      --dsv-blue-mid: #0A34A1;
+      --dsv-blue-light: #4887E0;
+      --dsv-blue-soft: #BCDBEC;
+      --dsv-green: #00682A;
+      --dsv-green-mid: #199049;
+      --dsv-green-soft: #BDE7AA;
+      --dsv-orange: #C64801;
+      --dsv-orange-mid: #E18735;
+      --dsv-yellow: #FFCA0C;
+
+      --font-main: "Foundry Sterling", Arial, Helvetica, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      border-radius: 0 !important; /* Linguagem DSV: formas retas/retangulares */
+    }
+
+    body {
+      font-family: var(--font-main);
+      background-color: var(--dsv-grey-100);
+      color: var(--dsv-black);
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ==========================================================================
+       Header Institucional (Fundo Branco + Clear Space + Logos Proporcionais)
+       ========================================================================== */
+    .topbar {
+      background-color: var(--dsv-white);
+      border-bottom: 4px solid var(--dsv-blue);
+      width: 100%;
+    }
+
+    .topbar-inner {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .brand-dsv {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 4px 0;
+    }
+
+    .brand-dsv-mark {
+      font-size: 32px;
+      font-weight: 900;
+      color: var(--dsv-blue);
+      letter-spacing: -0.05em;
+      line-height: 1;
+      font-style: italic;
+    }
+
+    .brand-dsv-payoff {
+      font-size: 11px;
+      color: var(--dsv-blue);
+      letter-spacing: 0.02em;
+      font-weight: 400;
+    }
+
+    .brand-partner {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding-left: 24px;
+      border-left: 1px solid var(--dsv-grey-300);
+    }
+
+    .partner-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--dsv-grey-700);
+      text-align: right;
+    }
+
+    .partner-logo {
+      height: 44px;
+      width: auto;
+      max-width: 170px;
+      object-fit: contain;
+      display: block;
+      mix-blend-mode: multiply;
+    }
+
+    /* ==========================================================================
+       Faixa de Título (DSV Blue — Hierarquia Clara)
+       ========================================================================== */
+    .hero {
+      background-color: var(--dsv-blue);
+      color: var(--dsv-white);
+      width: 100%;
+    }
+
+    .hero-inner {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 32px 32px 28px;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 20px;
+      align-items: end;
+    }
+
+    .hero-text {
+      grid-column: span 8;
+    }
+
+    .hero-kicker {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--dsv-blue-soft);
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+
+    .hero-title {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 8px;
+    }
+
+    .hero-subtitle {
+      font-size: 14px;
+      color: #E2EAF4;
+      max-width: 680px;
+    }
+
+    .hero-actions {
+      grid-column: span 4;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* ==========================================================================
+       Container Principal (12-Column Grid + Safe Zone)
+       ========================================================================== */
+    .main-container {
+      max-width: 1360px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 28px 32px 48px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* KPI Strip */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .kpi-card {
+      background-color: var(--dsv-white);
+      border: 1px solid var(--dsv-grey-300);
+      border-top: 3px solid var(--dsv-blue);
+      padding: 18px 20px;
+    }
+
+    .kpi-card.accent-green {
+      border-top-color: var(--dsv-green);
+    }
+
+    .kpi-card.accent-orange {
+      border-top-color: var(--dsv-orange);
+    }
+
+    .kpi-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--dsv-grey-700);
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+
+    .kpi-value {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--dsv-blue);
+      letter-spacing: -0.02em;
+    }
+
+    .kpi-card.accent-green .kpi-value {
+      color: var(--dsv-green);
+    }
+
+    .kpi-card.accent-orange .kpi-value {
+      color: var(--dsv-orange);
+    }
+
+    .kpi-sub {
+      font-size: 12px;
+      color: var(--dsv-grey-700);
+      margin-top: 2px;
+    }
+
+    /* Painéis */
+    .panel {
+      background-color: var(--dsv-white);
+      border: 1px solid var(--dsv-grey-300);
+    }
+
+    .panel-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--dsv-grey-300);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .panel-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--dsv-blue);
+    }
+
+    .panel-body {
+      padding: 24px;
+    }
+
+    /* Dropzone */
+    .dropzone {
+      border: 2px dashed var(--dsv-blue);
+      background-color: #F7F9FC;
+      padding: 36px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .dropzone:hover,
+    .dropzone.dragover {
+      background-color: #EBF2FA;
+      border-color: var(--dsv-blue-mid);
+    }
+
+    .dropzone-icon {
+      width: 44px;
+      height: 44px;
+      margin: 0 auto 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--dsv-blue);
+      color: var(--dsv-white);
+    }
+
+    .dropzone-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--dsv-blue);
+      margin-bottom: 4px;
+    }
+
+    .dropzone-desc {
+      font-size: 13px;
+      color: var(--dsv-grey-700);
+    }
+
+    /* Botões */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-family: var(--font-main);
+      font-size: 13px;
+      font-weight: 700;
+      padding: 10px 18px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+      text-decoration: none;
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background-color: var(--dsv-blue);
+      color: var(--dsv-white);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background-color: var(--dsv-blue-mid);
+    }
+
+    .btn-white {
+      background-color: var(--dsv-white);
+      color: var(--dsv-blue);
+      border-color: var(--dsv-white);
+    }
+
+    .btn-white:hover:not(:disabled) {
+      background-color: var(--dsv-blue-soft);
+      border-color: var(--dsv-blue-soft);
+    }
+
+    .btn-outline {
+      background-color: var(--dsv-white);
+      color: var(--dsv-blue);
+      border-color: var(--dsv-blue);
+    }
+
+    .btn-outline:hover:not(:disabled) {
+      background-color: var(--dsv-grey-100);
+    }
+
+    .btn-danger-outline {
+      background-color: var(--dsv-white);
+      color: var(--dsv-orange);
+      border-color: var(--dsv-orange);
+    }
+
+    .btn-danger-outline:hover:not(:disabled) {
+      background-color: #FDF2EC;
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    /* Barra de Progresso */
+    .progress-wrap {
+      margin-top: 18px;
+      display: none;
+    }
+
+    .progress-wrap.active {
+      display: block;
+    }
+
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--dsv-grey-900);
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      background-color: var(--dsv-grey-100);
+      border: 1px solid var(--dsv-grey-300);
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background-color: var(--dsv-blue);
+      transition: width 0.2s ease;
+    }
+
+    /* Tabelas */
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+
+    thead th {
+      background-color: var(--dsv-blue);
+      color: var(--dsv-white);
+      font-weight: 700;
+      text-align: left;
+      padding: 11px 12px;
+      white-space: nowrap;
+      border-right: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    thead th:last-child {
+      border-right: none;
+    }
+
+    tbody td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--dsv-grey-300);
+      color: var(--dsv-grey-900);
+      white-space: nowrap;
+    }
+
+    tbody tr:nth-child(even) {
+      background-color: #FAFAFB;
+    }
+
+    tbody tr:hover {
+      background-color: #F0F4FA;
+    }
+
+    .num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .badge-ok {
+      background-color: var(--dsv-green-soft);
+      color: var(--dsv-green);
+    }
+
+    .badge-err {
+      background-color: #F9DCD0;
+      color: var(--dsv-orange);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 36px 20px;
+      color: var(--dsv-grey-700);
+      font-size: 13px;
+    }
+
+    /* Footer */
+    .footer {
+      background-color: var(--dsv-white);
+      border-top: 1px solid var(--dsv-grey-300);
+      padding: 16px 32px;
+      font-size: 12px;
+      color: var(--dsv-grey-700);
+    }
+
+    .footer-inner {
+      max-width: 1360px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    /* Responsividade */
+    @media (max-width: 960px) {
+      .hero-text,
+      .hero-actions {
+        grid-column: span 12;
+        justify-content: flex-start;
+      }
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 600px) {
+      .topbar-inner,
+      .hero-inner,
+      .main-container {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+      .brand-partner {
+        padding-left: 0;
+        border-left: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Cabeçalho Institucional -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand-dsv" aria-label="DSV Global Transport and Logistics">
+        <span class="brand-dsv-mark">DSV</span>
+        <span class="brand-dsv-payoff">Global Transport and Logistics</span>
+      </div>
+
+      <div class="brand-partner">
+        <span class="partner-label">Operação<br />Cliente</span>
+        <img
+          src="Jaguar Logo.jpg"
+          alt="Jaguar"
+          class="partner-logo"
+          onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='inline-block';"
+        />
+        <span id="logoFallback" style="display:none; font-weight:800; letter-spacing:0.25em; font-size:16px; color:#000;">
+          JAGUAR
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Faixa Principal -->
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-text">
+        <div class="hero-kicker">Integração Mult &bull; Leitura de Faturas Comerciais</div>
+        <h1 class="hero-title">Extrator de Invoices JLR</h1>
+        <p class="hero-subtitle">
+          Carregue uma ou mais faturas em PDF para extrair automaticamente os 19 campos mapeados e exportar a planilha consolidada no padrão Integração Mult.
+        </p>
+      </div>
+      <div class="hero-actions">
+        <button id="btnSelectFiles" class="btn btn-white" type="button">
+          + Selecionar PDFs
+        </button>
+        <button id="btnExport" class="btn btn-outline" type="button" disabled style="background:#0A34A1; color:#FFF; border-color:#FFFFFF;">
+          Exportar Excel (.xlsx)
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Conteúdo -->
+  <main class="main-container">
+    <!-- KPIs -->
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Faturas Carregadas</div>
+        <div class="kpi-value" id="kpiTotal">0</div>
+        <div class="kpi-sub">Arquivos processados</div>
+      </div>
+      <div class="kpi-card accent-green">
+        <div class="kpi-label">Extraídas com Sucesso</div>
+        <div class="kpi-value" id="kpiOk">0</div>
+        <div class="kpi-sub">Linhas prontas para Excel</div>
+      </div>
+      <div class="kpi-card accent-orange">
+        <div class="kpi-label">Alertas / Erros</div>
+        <div class="kpi-value" id="kpiErr">0</div>
+        <div class="kpi-sub">Arquivos com divergência</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Valor Consolidado</div>
+        <div class="kpi-value" id="kpiValue">0,00</div>
+        <div class="kpi-sub" id="kpiCurrency">Soma de Net Price</div>
+      </div>
+    </section>
+
+    <!-- Área de Upload -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">1. Importação de Arquivos PDF</h2>
+        <div style="display:flex; gap:8px;">
+          <button id="btnClear" class="btn btn-danger-outline btn-sm" type="button" disabled>
+            Limpar Lista
+          </button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <input type="file" id="fileInput" accept=".pdf,application/pdf" multiple hidden />
+        <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Selecionar ou arrastar arquivos PDF">
+          <div class="dropzone-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M21 15v4H3v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+          </div>
+          <div class="dropzone-title">Arraste e solte os PDFs das Invoices aqui</div>
+          <div class="dropzone-desc">
+            Ou clique para selecionar múltiplos arquivos &bull; Processamento 100% local no navegador (nenhum dado sai da máquina)
+          </div>
+        </div>
+
+        <div id="progressWrap" class="progress-wrap">
+          <div class="progress-meta">
+            <span id="progressText">Processando...</span>
+            <span id="progressPct">0%</span>
+          </div>
+          <div class="progress-track">
+            <div id="progressBar" class="progress-bar"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pré-visualização Consolidada -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">2. Pré-visualização — Aba "Integração Mult"</h2>
+        <button id="btnExportBottom" class="btn btn-primary btn-sm" type="button" disabled>
+          Baixar Excel Consolidado (.xlsx)
+        </button>
+      </div>
+      <div class="table-wrap">
+        <table id="previewTable">
+          <thead>
+            <tr>
+              <th>Ação</th>
+              <th>Status</th>
+              <th>Arquivo</th>
+              <th>Seller</th>
+              <th>Importer</th>
+              <th>Shipment</th>
+              <th>Invoice</th>
+              <th>Inv Date</th>
+              <th>Material</th>
+              <th>Description</th>
+              <th>Tariff Code</th>
+              <th class="num">Qty</th>
+              <th>UOI</th>
+              <th class="num">Unit Wt.</th>
+              <th class="num">Tot Unit Wt.</th>
+              <th>UOW</th>
+              <th class="num">Net Price</th>
+              <th class="num">Extd. Net Price</th>
+              <th>Cuky</th>
+              <th>Orig</th>
+              <th>Chassi</th>
+              <th>Modelo</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr>
+              <td colspan="22" class="empty-state">
+                Nenhuma fatura carregada. Selecione um ou mais arquivos PDF acima para visualizar os dados tabulados.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <span>DSV &bull; Ferramenta de Tabulação de Invoices JLR (Integração Mult)</span>
+      <span>Campos fixos aplicados: Qty = 1 | UOI = EA</span>
+    </div>
+  </footer>
+
+  <script>
+    // Configuração do worker do PDF.js
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+    const COLUMNS = [
+      "Seller",
+      "Importer",
+      "Shipment",
+      "Invoice",
+      "Inv Date",
+      "Material",
+      "Description",
+      "Tariff Code",
+      "Qty",
+      "UOI",
+      "Unit Wt.",
+      "Tot Unit Wt.",
+      "UOW",
+      "Net Price",
+      "Extd. Net Price",
+      "Cuky",
+      "Orig",
+      "Chassi",
+      "Modelo"
+    ];
+
+    const MONTHS_EN = {
+      JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
+      JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11
+    };
+
+    // Estado da aplicação: lista de registros { id, fileName, status, error, data }
+    let records = [];
+    let nextId = 1;
+
+    // Elementos DOM
+    const fileInput = document.getElementById("fileInput");
+    const dropzone = document.getElementById("dropzone");
+    const btnSelectFiles = document.getElementById("btnSelectFiles");
+    const btnExport = document.getElementById("btnExport");
+    const btnExportBottom = document.getElementById("btnExportBottom");
+    const btnClear = document.getElementById("btnClear");
+    const tableBody = document.getElementById("tableBody");
+    const progressWrap = document.getElementById("progressWrap");
+    const progressBar = document.getElementById("progressBar");
+    const progressText = document.getElementById("progressText");
+    const progressPct = document.getElementById("progressPct");
+
+    // Eventos de seleção
+    btnSelectFiles.addEventListener("click", () => fileInput.click());
+    dropzone.addEventListener("click", () => fileInput.click());
+    dropzone.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        fileInput.click();
+      }
+    });
+
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files.length) {
+        handleFiles(Array.from(e.target.files));
+        fileInput.value = "";
+      }
+    });
+
+    // Drag & Drop
+    ["dragenter", "dragover"].forEach((evt) => {
+      dropzone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        dropzone.classList.add("dragover");
+      });
+    });
+
+    ["dragleave", "drop"].forEach((evt) => {
+      dropzone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        dropzone.classList.remove("dragover");
+      });
+    });
+
+    dropzone.addEventListener("drop", (e) => {
+      const files = Array.from(e.dataTransfer.files).filter((f) =>
+        f.name.toLowerCase().endsWith(".pdf")
+      );
+      if (files.length) handleFiles(files);
+    });
+
+    btnClear.addEventListener("click", () => {
+      records = [];
+      render();
+    });
+
+    btnExport.addEventListener("click", exportToExcel);
+    btnExportBottom.addEventListener("click", exportToExcel);
+
+    // =========================================================================
+    // Extração de Texto preservando Layout (equivalente ao pypdf layout mode)
+    // =========================================================================
+    async function extractLayoutText(file) {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const pagesText = [];
+
+      for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p);
+        const content = await page.getTextContent();
+
+        // Agrupa fragmentos de texto por linha (coordenada Y com tolerância de 2.5pt)
+        const lines = [];
+        for (const item of content.items) {
+          const str = item.str;
+          if (!str || !str.trim()) continue;
+
+          const x = item.transform[4];
+          const y = item.transform[5];
+          const width = item.width || 0;
+
+          let line = lines.find((l) => Math.abs(l.y - y) <= 2.5);
+          if (!line) {
+            line = { y, items: [] };
+            lines.push(line);
+          }
+          line.items.push({ x, width, str });
+        }
+
+        // Ordena linhas de cima para baixo (Y decrescente no PDF)
+        lines.sort((a, b) => b.y - a.y);
+
+        const pageLines = lines.map((line) => {
+          line.items.sort((a, b) => a.x - b.x);
+          let lineStr = "";
+          let prevEnd = null;
+
+          for (const it of line.items) {
+            if (prevEnd !== null) {
+              const gap = it.x - prevEnd;
+              if (gap > 14) {
+                lineStr += "    "; // Separação clara de colunas
+              } else if (gap > 2.5) {
+                lineStr += " ";
+              }
+            }
+            lineStr += it.str;
+            prevEnd = it.x + it.width;
+          }
+          return lineStr.trimEnd();
+        });
+
+        pagesText.push(pageLines.join("\n"));
+      }
+
+      return pagesText.join("\n");
+    }
+
+    function parseEnDate(dateStr) {
+      if (!dateStr) return null;
+      const m = dateStr.trim().match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})$/);
+      if (!m) return null;
+      const day = parseInt(m[1], 10);
+      const month = MONTHS_EN[m[2].toUpperCase()];
+      const year = parseInt(m[3], 10);
+      if (month === undefined) return null;
+      return new Date(year, month, day);
+    }
+
+    function toIntIfDigits(val) {
+      if (val === null || val === undefined || val === "") return null;
+      return /^\d+$/.test(val) ? Number(val) : val;
+    }
+
+    function parseJlrInvoiceText(fullText) {
+      const search = (regex, group = 1) => {
+        const m = fullText.match(regex);
+        return m && m[group] ? m[group].trim() : null;
+      };
+
+      // 1. Seller
+      const seller =
+        search(/Signed for and on behalf of\s+(.+)/) ||
+        search(/INVOICE\s{2,}(.+)/);
+
+      // 2. Importer (CNPJ)
+      const importer = search(/CNPJ\s*[-:]?\s*(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/);
+
+      // 3. Shipment (JLR Order No.)
+      const shipment = toIntIfDigits(search(/JLR Order No\.\s+(\S+)/));
+
+      // 4. Invoice (Invoice Number)
+      const invoice = toIntIfDigits(search(/Invoice Number\s+(\S+)/));
+
+      // 5. Inv Date (Invoice Date)
+      const invDate = parseEnDate(
+        search(/Invoice Date\s+(\d{1,2}\s+[A-Za-z]{3}\s+\d{4})/)
+      );
+
+      // 6 & 7. Material (Spec Code) e Description (1ª linha do veículo)
+      const specMatch = fullText.match(
+        /Spec Code\s+Description\s+Value\s+VAT Rate\s*\n\s*(\S+)\s+(.+?)\s{2,}([\d,]+\.\d{2})\s+[\d.]+\s*%/
+      );
+      const material = specMatch ? toIntIfDigits(specMatch[1].trim()) : null;
+      const description = specMatch ? specMatch[2].trim() : null;
+
+      // 8. Tariff Code
+      const tariffCode = toIntIfDigits(search(/Tariff Code\s+(\d+)/));
+
+      // 9 & 10. Valores fixos
+      const qty = 1;
+      const uoi = "EA";
+
+      // 11, 12 & 13. Weight -> Unit Wt., Tot Unit Wt., UOW
+      const wtMatch = fullText.match(/Weight\s+([\d,]+(?:\.\d+)?)\s+([A-Za-z]+)/);
+      let unitWt = null;
+      let uow = null;
+      if (wtMatch) {
+        const wtNum = parseFloat(wtMatch[1].replace(/,/g, ""));
+        unitWt = Number.isInteger(wtNum) ? wtNum : wtNum;
+        uow = wtMatch[2].trim().toUpperCase();
+      }
+      const totUnitWt = unitWt;
+
+      // 14 & 15. Net Price e Extd. Net Price (Total da Invoice)
+      const totalStr = search(/^\s*Total\s+([\d,]+\.\d{2})/m);
+      const netPrice = totalStr ? parseFloat(totalStr.replace(/,/g, "")) : null;
+      const extdNetPrice = netPrice;
+
+      // 16. Cuky (Currency)
+      const cuky = search(/Currency\s+([A-Z]{3})/);
+
+      // 17. Orig
+      const orig =
+        search(/of\s+([A-Za-z\s]+?)(?:\/EU)?\s+manufacture/) ||
+        search(/Coventry[^\n]*\n\s*(.+?)\n\s*Tel:/);
+
+      // 18. Chassi (VIN No.)
+      const chassi = search(/VIN No\.\s+([A-Z0-9]+)/);
+
+      // 19. Modelo (Model Year)
+      const modelo = toIntIfDigits(search(/(\d{4})\s+Model Year/));
+
+      if (!invoice && !chassi) {
+        throw new Error("Layout de Invoice JLR não identificado.");
+      }
+
+      return {
+        "Seller": seller,
+        "Importer": importer,
+        "Shipment": shipment,
+        "Invoice": invoice,
+        "Inv Date": invDate,
+        "Material": material,
+        "Description": description,
+        "Tariff Code": tariffCode,
+        "Qty": qty,
+        "UOI": uoi,
+        "Unit Wt.": unitWt,
+        "Tot Unit Wt.": totUnitWt,
+        "UOW": uow,
+        "Net Price": netPrice,
+        "Extd. Net Price": extdNetPrice,
+        "Cuky": cuky,
+        "Orig": orig,
+        "Chassi": chassi,
+        "Modelo": modelo
+      };
+    }
+
+    async function handleFiles(files) {
+      progressWrap.classList.add("active");
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const pct = Math.round(((i + 1) / files.length) * 100);
+        progressText.textContent = `Lendo (${i + 1}/${files.length}): ${file.name}`;
+        progressPct.textContent = `${pct}%`;
+        progressBar.style.width = `${pct}%`;
+
+        try {
+          const text = await extractLayoutText(file);
+          const data = parseJlrInvoiceText(text);
+          records.push({
+            id: nextId++,
+            fileName: file.name,
+            status: "OK",
+            error: null,
+            data
+          });
+        } catch (err) {
+          records.push({
+            id: nextId++,
+            fileName: file.name,
+            status: "ERRO",
+            error: err.message || "Falha ao ler PDF",
+            data: null
+          });
+        }
+      }
+
+      render();
+      setTimeout(() => {
+        progressWrap.classList.remove("active");
+      }, 600);
+    }
+
+    function removeRecord(id) {
+      records = records.filter((r) => r.id !== id);
+      render();
+    }
+
+    function formatDatePreview(dateObj) {
+      if (!(dateObj instanceof Date) || isNaN(dateObj)) return "-";
+      const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
+      const dd = String(dateObj.getDate()).padStart(2, "0");
+      const yy = String(dateObj.getFullYear()).slice(-2);
+      return `${mm}-${dd}-${yy}`;
+    }
+
+    function formatCurrency(val) {
+      if (val === null || val === undefined || isNaN(val)) return "-";
+      return val.toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
+
+    function escapeHtml(str) {
+      return String(str ?? "-")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function render() {
+      const okRecords = records.filter((r) => r.status === "OK");
+      const errRecords = records.filter((r) => r.status !== "OK");
+
+      // KPIs
+      document.getElementById("kpiTotal").textContent = records.length;
+      document.getElementById("kpiOk").textContent = okRecords.length;
+      document.getElementById("kpiErr").textContent = errRecords.length;
+
+      const totalNet = okRecords.reduce(
+        (acc, r) => acc + (Number(r.data["Net Price"]) || 0),
+        0
+      );
+      document.getElementById("kpiValue").textContent = formatCurrency(totalNet);
+
+      const currencies = [...new Set(okRecords.map((r) => r.data["Cuky"]).filter(Boolean))];
+      document.getElementById("kpiCurrency").textContent =
+        currencies.length === 1 ? `Soma em ${currencies[0]}` : "Soma de Net Price";
+
+      // Botões
+      const hasAny = records.length > 0;
+      const hasOk = okRecords.length > 0;
+      btnClear.disabled = !hasAny;
+      btnExport.disabled = !hasOk;
+      btnExportBottom.disabled = !hasOk;
+
+      // Tabela
+      if (!hasAny) {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="22" class="empty-state">
+              Nenhuma fatura carregada. Selecione um ou mais arquivos PDF acima para visualizar os dados tabulados.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tableBody.innerHTML = records
+        .map((rec) => {
+          const d = rec.data || {};
+          const badge =
+            rec.status === "OK"
+              ? `<span class="badge badge-ok">OK</span>`
+              : `<span class="badge badge-err" title="${escapeHtml(rec.error)}">ERRO</span>`;
+
+          return `
+            <tr>
+              <td>
+                <button class="btn btn-danger-outline btn-sm" type="button" onclick="removeRecord(${rec.id})">
+                  Remover
+                </button>
+              </td>
+              <td>${badge}</td>
+              <td>${escapeHtml(rec.fileName)}</td>
+              <td>${escapeHtml(d["Seller"])}</td>
+              <td>${escapeHtml(d["Importer"])}</td>
+              <td>${escapeHtml(d["Shipment"])}</td>
+              <td>${escapeHtml(d["Invoice"])}</td>
+              <td>${formatDatePreview(d["Inv Date"])}</td>
+              <td>${escapeHtml(d["Material"])}</td>
+              <td>${escapeHtml(d["Description"])}</td>
+              <td>${escapeHtml(d["Tariff Code"])}</td>
+              <td class="num">${escapeHtml(d["Qty"])}</td>
+              <td>${escapeHtml(d["UOI"])}</td>
+              <td class="num">${escapeHtml(d["Unit Wt."])}</td>
+              <td class="num">${escapeHtml(d["Tot Unit Wt."])}</td>
+              <td>${escapeHtml(d["UOW"])}</td>
+              <td class="num">${formatCurrency(d["Net Price"])}</td>
+              <td class="num">${formatCurrency(d["Extd. Net Price"])}</td>
+              <td>${escapeHtml(d["Cuky"])}</td>
+              <td>${escapeHtml(d["Orig"])}</td>
+              <td>${escapeHtml(d["Chassi"])}</td>
+              <td>${escapeHtml(d["Modelo"])}</td>
+            </tr>
+          `;
+        })
+        .join("");
+    }
+
+    // =========================================================================
+    // Exportação Excel (.xlsx) no padrão exato da aba "Integração Mult"
+    // =========================================================================
+    function exportToExcel() {
+      const okRows = records.filter((r) => r.status === "OK").map((r) => r.data);
+      if (!okRows.length) return;
+
+      const aoa = [COLUMNS];
+      for (const row of okRows) {
+        aoa.push(COLUMNS.map((col) => row[col] ?? ""));
+      }
+
+      const ws = XLSX.utils.aoa_to_sheet(aoa, { cellDates: true });
+
+      // Aplica formato de data "mm-dd-yy" na coluna Inv Date (índice 4 -> coluna E)
+      const invDateColIdx = COLUMNS.indexOf("Inv Date");
+      for (let r = 1; r <= okRows.length; r++) {
+        const cellAddr = XLSX.utils.encode_cell({ r, c: invDateColIdx });
+        if (ws[cellAddr] && ws[cellAddr].v instanceof Date) {
+          ws[cellAddr].z = "mm-dd-yy";
+        }
+      }
+
+      // Ajuste automático da largura das colunas
+      ws["!cols"] = COLUMNS.map((col, idx) => {
+        const maxLen = Math.max(
+          col.length,
+          ...okRows.map((row) => {
+            const val = row[col];
+            if (val instanceof Date) return 10;
+            return String(val ?? "").length;
+          })
+        );
+        return { wch: Math.min(maxLen + 4, 62) };
+      });
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Integração Mult");
+
+      const now = new Date();
+      const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(
+        now.getDate()
+      ).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}${String(
+        now.getMinutes()
+      ).padStart(2, "0")}`;
+
+      XLSX.writeFile(wb, `JLR_Invoices_${stamp}.xlsx`);
+    }
+  </script>
+</body>
+</html>
